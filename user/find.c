@@ -3,19 +3,6 @@
 #include "user/user.h"
 #include "kernel/fs.h"
 
-char *fmtname(char *path)
-{
-	static char buf[DIRSIZ + 1];
-	char *p;
-
-	// Find first character after last slash.
-	for (p = path + strlen(path); p >= path && *p != '/'; p--)
-		;
-	p++;
-
-	return p;
-}
-
 void find(char *path, char *file_name)
 {
 	char buf[512], *p;
@@ -28,65 +15,58 @@ void find(char *path, char *file_name)
 		fprintf(2, "ls: cannot open %s\n", path);
 		return;
 	}
-
 	if (fstat(fd, &st) < 0)
 	{
 		fprintf(2, "ls: cannot stat %s\n", path);
 		close(fd);
 		return;
 	}
-	while (read(fd, &de, sizeof(de)) == sizeof(de)){
-		if (fstat(fd, &st) < 0)
-		{
-			fprintf(2, "ls: cannot stat %s\n", path);
-			close(fd);
-			return;
-		}
-	}
-	switch (st.type)
+	while (read(fd, &de, sizeof(de)) == sizeof(de))
 	{
-	case T_FILE:
-		if(strcmp(fmtname(path), file_name) == 0){
-			printf("%s\n", path);
-		}
-		break;
-
-	case T_DIR:
-		if (strlen(path) + 1 + DIRSIZ + 1 > sizeof buf)
-		{
-			printf("ls: path too long\n");
-			break;
-		}
-		strcpy(buf, path);
+		if (de.inum == 0)
+			continue;
+		strcpy(buf,path);
 		p = buf + strlen(buf);
 		*p++ = '/';
 		
-		{
-			if (de.inum == 0)
-				continue;
-			memmove(p, de.name, DIRSIZ);
-			p[DIRSIZ] = 0;
-			if (stat(buf, &st) < 0)
-			{
-				printf("ls: cannot stat %s\n", buf);
-				continue;
-			}
-			printf("%s %d %d %d\n", fmtname(buf), st.type, st.ino, st.size);
+		memmove(p,de.name,DIRSIZ);
+		p[DIRSIZ] = 0;
+		if(stat(buf,&st) < 0){
+			printf("find: cannot stat %s",buf);
+			continue;
 		}
-		break;
+		
+		switch (st.type)
+		{
+		case T_FILE:
+			if (strcmp(de.name, file_name) == 0)
+			{
+				printf("%s\n", buf);
+			}
+			break;
+
+		case T_DIR:
+			if (strlen(buf) + 1 + DIRSIZ + 1 > sizeof buf)
+			{
+				printf("ls: path too long\n");
+				break;
+			}
+			if(strcmp(de.name,".")!=0 && strcmp(de.name,"..")!=0)
+				find(buf,file_name);
+			break;
+		}
 	}
+
 	close(fd);
 }
 
 int main(int argc, char *argv[])
 {
-	int i;
-
 	if (argc != 3)
 	{
-		printf("find <file_path> <file_name>");
+		write(2, "Error in args", strlen("Error in args"));
 		exit();
 	}
-	find(argv[1],argv[2]);
+	find(argv[1], argv[2]);
 	exit();
 }
