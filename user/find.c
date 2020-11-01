@@ -3,6 +3,7 @@
 #include "user/user.h"
 #include "kernel/fs.h"
 
+//参考user/ls.c
 void find(char *path, char *file_name)
 {
 	char buf[512], *p;
@@ -21,8 +22,9 @@ void find(char *path, char *file_name)
 		close(fd);
 		return;
 	}
-	while (read(fd, &de, sizeof(de)) == sizeof(de))
+	while (read(fd, &de, sizeof(de)) == sizeof(de))	//不断读取该路径下的所有file
 	{
+		//先将当前路径path和此file的文件名拼接到buf
 		if (de.inum == 0)
 			continue;
 		strcpy(buf,path);
@@ -31,22 +33,22 @@ void find(char *path, char *file_name)
 		
 		memmove(p,de.name,DIRSIZ);
 		p[DIRSIZ] = 0;
-		if(stat(buf,&st) < 0){
+		if(stat(buf,&st) < 0){	//将buf所指向的file信息读取到st中
 			printf("find: cannot stat %s",buf);
 			continue;
 		}
 		
 		switch (st.type)
 		{
-		case T_FILE:
+		case T_FILE:	//是单个文件,并且是用户要找的文件则直接打印出来
 			if (strcmp(de.name, file_name) == 0)
 			{
 				printf("%s\n", buf);
 			}
 			break;
 
-		case T_DIR:
-			if (strlen(buf) + 1 + DIRSIZ + 1 > sizeof buf)
+		case T_DIR:		//是文件夹,则进入该文件夹递归寻找文件
+			if (strlen(buf) + 1 + DIRSIZ + 1 > sizeof buf)	//path过长
 			{
 				printf("ls: path too long\n");
 				break;

@@ -11,7 +11,7 @@ int main(int argc, char *argv[])
 
 	int x = atoi(argv[1]);
 
-	sleep(x);
+	sleep(x);	//调用系统函数
 
 	exit();
 }
