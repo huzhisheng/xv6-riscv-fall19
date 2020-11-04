@@ -5,7 +5,8 @@
 #include "riscv.h"
 #include "defs.h"
 #include "fs.h"
-
+#include "spinlock.h"
+#include "proc.h"
 
 /*
  * the kernel's page table.
@@ -135,12 +136,22 @@ walk(pagetable_t pagetable, uint64 va, int alloc)
   }
   return &pagetable[PX(0, va)];
 }
-
+int uvmcheck_guard(pagetable_t pagetable, uint64 va)
+{
+  pte_t *pte = walk(pagetable, va, 0);
+  if(pte==0){
+    return 0;
+  }
+  return (*pte) & PTE_G;
+}
 // Look up a virtual address, return the physical address,
 // or 0 if not mapped.
 // Can only be used to look up user pages.
 uint64
-walkaddr(pagetable_t pagetable, uint64 va)
+walkaddr(pagetable_t pagetable, uint64 va)  
+//测试的第四条要求: 
+//Handle the case in which a process passes a valid address from sbrk() to a system call such as read or write,
+//but the memory for that address has not yet been allocated.
 {
   pte_t *pte;
   uint64 pa;
@@ -149,10 +160,28 @@ walkaddr(pagetable_t pagetable, uint64 va)
     return 0;
 
   pte = walk(pagetable, va, 0);
-  if(pte == 0)
-    return 0;
-  if((*pte & PTE_V) == 0)
-    return 0;
+
+  if((pte == 0) || (*pte & PTE_V) == 0){
+    struct proc *p = myproc();
+    if(va >= p->sz)
+      return 0;
+    if (uvmcheck_guard(pagetable, va))  //借鉴了下github上判断是否是page_guard地址的函数
+      return 0;
+    
+    char *mem = kalloc();
+    if(mem == 0){
+      //printf("Create new page failed");
+      return 0;
+    }
+    memset(mem, 0, PGSIZE);
+    uint64 a = PGROUNDDOWN(va);
+    if(mappages(pagetable, a, PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0){
+      kfree(mem);
+      //printf("Insert new page PTE into page table failed");
+      return 0;
+    }
+    pte = walk(pagetable, va, 0);
+  }
   if((*pte & PTE_U) == 0)
     return 0;
   pa = PTE2PA(*pte);
@@ -230,10 +259,11 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 size, int do_free)
   for(;;){
     if((pte = walk(pagetable, a, 0)) == 0)
       //panic("uvmunmap: walk");
-      do_free = 0;
+      goto nextpage;  //之前所以会有kerneltrap错误的原因是没有跳过*pte = 0这一句, 导致给地址为0的区域赋值了
     if((*pte & PTE_V) == 0){
       //printf("va=%p pte=%p\n", a, *pte);
-      do_free = 0;  //注释掉下面语句后还得把do_free设置为0，避免kfree一个不存在的地址
+      //注释掉下面语句后直接跳过其余语句
+      goto nextpage;
       //panic("uvmunmap: not mapped");
     }
     if(PTE_FLAGS(*pte) == PTE_V)
@@ -243,10 +273,12 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 size, int do_free)
       kfree((void*)pa);
     }
     *pte = 0;
+  nextpage:
     if(a == last)
       break;
     a += PGSIZE;
     pa += PGSIZE;
+
   }
 }
 
@@ -368,7 +400,7 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
   char *mem;
 
   for(i = 0; i < sz; i += PGSIZE){
-    if((pte = walk(old, i, 0)) == 0)
+    if((pte = walk(old, i, 0)) == 0)    //测试的第三条要求: Handle fork() correctly.
       //panic("uvmcopy: pte should exist");
       continue;
     if((*pte & PTE_V) == 0)
