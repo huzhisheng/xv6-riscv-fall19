@@ -6,6 +6,7 @@
 #include "defs.h"
 #include "fs.h"
 
+
 /*
  * the kernel's page table.
  */
@@ -17,6 +18,46 @@ extern char trampoline[]; // trampoline.S
 
 void print(pagetable_t);
 
+void vmprint(pagetable_t);
+void vmprint_sub(pagetable_t pagetable, pte_t pte, int depth, int index);
+
+void vmprint(pagetable_t pagetable){
+  printf("page table %p\n",pagetable);
+  // there are 2^9 = 512 PTEs in a page table.
+  for(int i = 0; i < 512; i++){
+    pte_t pte = pagetable[i];
+    uint64 child = PTE2PA(pte);
+    if((pte & PTE_V) && (pte & (PTE_R|PTE_W|PTE_X)) == 0){
+      // this PTE points to a lower-level page table.
+      vmprint_sub((pagetable_t)child, pte, 1, i);
+    } else if(pte & PTE_V){
+      printf("%s %d: pte %p pa %p\n","..",i,pte,(pagetable_t)child);
+      //panic("freewalk: leaf");
+    }
+  }
+}
+void vmprint_sub(pagetable_t pagetable, pte_t pte, int depth, int index){
+  for(int i = 0; i < depth; i++){
+    printf(".. ");
+  }
+  printf("%d: pte %p pa %p\n",index,pte,pagetable);
+
+  // there are 2^9 = 512 PTEs in a page table.
+  for(int i = 0; i < 512; i++){
+    pte_t pte = pagetable[i];
+    uint64 child = PTE2PA(pte);
+    if((pte & PTE_V) && (pte & (PTE_R|PTE_W|PTE_X)) == 0){
+      // this PTE points to a lower-level page table.
+      vmprint_sub((pagetable_t)child, pte, depth + 1, i);
+    } else if(pte & PTE_V){
+      for(int i = 0; i < depth + 1; i++){
+        printf(".. ");
+      }
+      printf("%d: pte %p pa %p\n",i,pte,(pagetable_t)child);
+      //panic("freewalk: leaf");
+    }
+  }
+}
 /*
  * create a direct-map page table for the kernel and
  * turn on paging. called early, in supervisor mode.
@@ -188,10 +229,12 @@ uvmunmap(pagetable_t pagetable, uint64 va, uint64 size, int do_free)
   last = PGROUNDDOWN(va + size - 1);
   for(;;){
     if((pte = walk(pagetable, a, 0)) == 0)
-      panic("uvmunmap: walk");
+      //panic("uvmunmap: walk");
+      do_free = 0;
     if((*pte & PTE_V) == 0){
-      printf("va=%p pte=%p\n", a, *pte);
-      panic("uvmunmap: not mapped");
+      //printf("va=%p pte=%p\n", a, *pte);
+      do_free = 0;  //注释掉下面语句后还得把do_free设置为0，避免kfree一个不存在的地址
+      //panic("uvmunmap: not mapped");
     }
     if(PTE_FLAGS(*pte) == PTE_V)
       panic("uvmunmap: not a leaf");
@@ -326,9 +369,11 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
 
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walk(old, i, 0)) == 0)
-      panic("uvmcopy: pte should exist");
+      //panic("uvmcopy: pte should exist");
+      continue;
     if((*pte & PTE_V) == 0)
-      panic("uvmcopy: page not present");
+      //panic("uvmcopy: page not present");
+      continue;
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
     if((mem = kalloc()) == 0)

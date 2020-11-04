@@ -46,9 +46,14 @@ sys_sbrk(void)
 
   if(argint(0, &n) < 0)
     return -1;
+  
   addr = myproc()->sz;
-  if(growproc(n) < 0)
-    return -1;
+  myproc()->sz += n;  //返回旧size
+  if(n<0){            //测试的第一条要求: handle negative sbrk() arguments.
+    myproc()->sz=uvmdealloc(myproc()->pagetable,addr,myproc()->sz);    
+  }
+  // if(growproc(n) < 0)
+  //   return -1;
   return addr;
 }
 
