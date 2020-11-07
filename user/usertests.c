@@ -1591,6 +1591,7 @@ sbrkbasic(char *s)
 
   // does sbrk() return the expected failure value?
   a = sbrk(TOOMUCH);
+
   if(a != (char*)0xffffffffffffffffL){
     printf("%s: sbrk(<toomuch>) returned %p\n", a);
     exit(1);

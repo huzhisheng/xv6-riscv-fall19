@@ -107,9 +107,10 @@ kalloc(void)
   release(&kmem.lock);
 
 
-  if(r)
+  if(r){
     memset((char*)r, 5, PGSIZE); // fill with junk
-
-  klink(r);
+    klink(r);
+  }
+    
   return (void*)r;
 }
