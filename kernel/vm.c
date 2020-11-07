@@ -385,7 +385,8 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
       return -1;
     pte = walk(pagetable,va0,0);
     if(pte==0||((*pte)&PTE_V)==0||((*pte)&PTE_U)==0){
-      panic("copyout() : pte not exist or not accessible to user\n");
+      return -1;
+      //panic("copyout() : pte not exist or not accessible to user\n");
     }
     pa0=PTE2PA(*pte);
     if(pa0 == 0)
