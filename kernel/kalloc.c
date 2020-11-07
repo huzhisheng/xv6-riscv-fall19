@@ -21,13 +21,19 @@ struct run {
 struct {
   struct spinlock lock;
   struct run *freelist;
+  uint *ref_count;  //在物理内存的前面一部分存储页的引用数量
 } kmem;
 
 void
 kinit()
 {
   initlock(&kmem.lock, "kmem");
-  freerange(end, (void*)PHYSTOP);
+  kmem.ref_count = (uint*)end;
+  uint64 page_counts = ((PHYSTOP - (uint64)end) >> 12)+1;  //加1是为了最后一页的ref_count冗余留出来
+  uint64 pa_offset = page_counts * sizeof(uint);
+  memset(end,0,pa_offset);
+  //printf("kinit %d %d\n",pa_offset,page_counts);
+  freerange(end + pa_offset, (void*)PHYSTOP);
 }
 
 void
@@ -35,8 +41,10 @@ freerange(void *pa_start, void *pa_end)
 {
   char *p;
   p = (char*)PGROUNDUP((uint64)pa_start);
-  for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE)
-    kfree(p);
+  for(; p + PGSIZE <= (char*)pa_end; p += PGSIZE){
+    k_real_free(p);
+  }
+    
 }
 
 // Free the page of physical memory pointed at by v,
@@ -44,7 +52,7 @@ freerange(void *pa_start, void *pa_end)
 // call to kalloc().  (The exception is when
 // initializing the allocator; see kinit above.)
 void
-kfree(void *pa)
+k_real_free(void *pa)
 {
   struct run *r;
 
@@ -59,6 +67,28 @@ kfree(void *pa)
   acquire(&kmem.lock);
   r->next = kmem.freelist;
   kmem.freelist = r;
+  release(&kmem.lock);
+  
+  
+}
+void kfree(void *pa){
+  uint64 index = ((uint64)pa-(uint64)end)>>12;
+  uint ref_count;
+  acquire(&kmem.lock);
+  kmem.ref_count[index]--;
+  ref_count = kmem.ref_count[index];
+  //printf("ref_count: %d\n", ref_count);
+  release(&kmem.lock);
+
+  if(ref_count == 0)
+    k_real_free(pa);
+}
+void klink(void *pa){
+  //printf("test");
+  uint64 index = ((uint64)pa-(uint64)end)>>12;
+  //printf("test %p %p %d",(uint64)pa,(uint64)end,index);
+  acquire(&kmem.lock);
+  kmem.ref_count[index]++;
   release(&kmem.lock);
 }
 
@@ -76,7 +106,10 @@ kalloc(void)
     kmem.freelist = r->next;
   release(&kmem.lock);
 
+
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
+
+  klink(r);
   return (void*)r;
 }

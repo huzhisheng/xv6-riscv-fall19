@@ -25,9 +25,11 @@ void print(pagetable_t);
 void
 kvminit()
 {
+  printf("kvminit start");
   kernel_pagetable = (pagetable_t) kalloc();
+  printf("kvminit start");
   memset(kernel_pagetable, 0, PGSIZE);
-
+  printf("kvminit start");
   // uart registers
   kvmmap(UART0, UART0, PGSIZE, PTE_R | PTE_W);
 
@@ -52,6 +54,7 @@ kvminit()
   // map the trampoline for trap entry/exit to
   // the highest virtual address in the kernel.
   kvmmap(TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
+  printf("kvminit start");
 }
 
 // Switch h/w page table register to the kernel's page table,
@@ -75,7 +78,7 @@ kvminithart()
 //   21..39 -- 9 bits of level-1 index.
 //   12..20 -- 9 bits of level-0 index.
 //    0..12 -- 12 bits of byte offset within the page.
-static pte_t *
+pte_t *
 walk(pagetable_t pagetable, uint64 va, int alloc)
 {
   if(va >= MAXVA)
@@ -328,14 +331,15 @@ uvmcopy(pagetable_t old, pagetable_t new, uint64 sz)
     if((pte = walk(old, i, 0)) == 0)
       panic("uvmcopy: pte should exist");
     *pte = *pte & (~PTE_W);
+    *pte = *pte | PTE_COW;
     if((*pte & PTE_V) == 0)
       panic("uvmcopy: page not present");
     pa = PTE2PA(*pte);
     flags = PTE_FLAGS(*pte);
-
     if(mappages(new, i, PGSIZE, pa, flags) != 0){
       panic("uvmcopy: map parent page into child faild");
     }
+    klink((void*)pa);
     // if((mem = kalloc()) == 0)
     //   goto err;
     // memmove(mem, (char*)pa, PGSIZE);
@@ -371,12 +375,47 @@ int
 copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
 {
   uint64 n, va0, pa0;
-
+  pte_t *pte;
+  
   while(len > 0){
     va0 = PGROUNDDOWN(dstva);
-    pa0 = walkaddr(pagetable, va0);
+    pte = walk(pagetable,va0,0);
+    if(pte==0||((*pte)&PTE_V)==0||((*pte)&PTE_U)==0){
+      panic("copyout() : pte not exist or not accessible to user\n");
+    }
+    pa0=PTE2PA(*pte);
     if(pa0 == 0)
       return -1;
+
+    if(*pte & PTE_COW){
+      char *mem = kalloc();
+      if(mem == 0){
+        panic("copyout(): create new page memory failed");
+      }
+      memmove(mem,(char *)pa0,PGSIZE);
+      (*pte)|=PTE_W;
+      (*pte)&=~PTE_COW;
+      int perm=PTE_FLAGS((*pte));
+      (*pte)&=~PTE_V;
+      if(mappages(pagetable, va0, PGSIZE, (uint64)mem, perm) != 0){
+        kfree(mem);
+        return -1;
+      }
+      (*pte)|=PTE_V;
+      pa0=(uint64)mem; // NOT SURE
+      // int flags = PTE_W|PTE_R|PTE_X|PTE_U|PTE_V;
+      // uint64 pa = walkaddr(pagetable,va0);
+      // if(pa == 0){
+      //   panic("copyout(): find old pa failed");
+      // }
+      // kfree((void*)pa);
+      // uvmunmap(pagetable,va0,PGSIZE,0);
+      // if(mappages(pagetable, va0, PGSIZE, (uint64)mem, flags) != 0){
+      //   k_real_free(mem);
+      //   panic("copyout(): create new pte failed");
+      // }
+    }
+    
     n = PGSIZE - (dstva - va0);
     if(n > len)
       n = len;
