@@ -27,7 +27,9 @@ int ntas();
 int crash(const char*, int);
 int mount(char*, char *);
 int umount(char*);
-
+//新加的
+int sigalarm(int ticks, void (*handler)());
+int sigreturn(void);
 // ulib.c
 int stat(const char*, struct stat*);
 char* strcpy(char*, const char*);
