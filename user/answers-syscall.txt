@@ -1,0 +1,51 @@
+int g(int x) {
+   0:	1141                	addi	sp,sp,-16
+   2:	e422                	sd	s0,8(sp)
+   4:	0800                	addi	s0,sp,16
+  return x+3;
+}
+   6:	250d                	addiw	a0,a0,3
+   8:	6422                	ld	s0,8(sp)
+   a:	0141                	addi	sp,sp,16
+   c:	8082                	ret
+
+000000000000000e <f>:
+
+int f(int x) {
+   e:	1141                	addi	sp,sp,-16
+  10:	e422                	sd	s0,8(sp)
+  12:	0800                	addi	s0,sp,16
+  return g(x);
+}
+  14:	250d                	addiw	a0,a0,3
+  16:	6422                	ld	s0,8(sp)
+  18:	0141                	addi	sp,sp,16
+  1a:	8082                	ret
+
+000000000000001c <main>:
+
+void main(void) {
+  1c:	1141                	addi	sp,sp,-16
+  1e:	e406                	sd	ra,8(sp)
+  20:	e022                	sd	s0,0(sp)
+  22:	0800                	addi	s0,sp,16
+  printf("%d %d\n", f(8)+1, 13);
+  24:	4635                	li	a2,13
+  26:	45b1                	li	a1,12
+  28:	00000517          	auipc	a0,0x0
+  2c:	7c850513          	addi	a0,a0,1992 # 7f0 <malloc+0xea>
+  30:	00000097          	auipc	ra,0x0
+  34:	618080e7          	jalr	1560(ra) # 648 <printf>
+  exit(0);
+  38:	4501                	li	a0,0
+  3a:	00000097          	auipc	ra,0x0
+  3e:	276080e7          	jalr	630(ra) # 2b0 <exit>
+
+问题1：
+首先寄存器a0-a7一般用于传递函数参数，在printf函数中a2寄存器负责存立即数13
+问题2：
+汇编代码里并没有跳转到函数f或g中，而是经过编译器优化后发现调用f(8)+1的结果是个常数12，因此直接在地址0x26的语句中使用了立即数12
+问题3：
+在地址0x34的语句中，跳转到printf
+问题4：
+jalr后指向pc+4的地址，因此ra是0x38
