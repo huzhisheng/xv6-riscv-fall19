@@ -40,7 +40,7 @@ void main(void) {
   38:	4501                	li	a0,0
   3a:	00000097          	auipc	ra,0x0
   3e:	276080e7          	jalr	630(ra) # 2b0 <exit>
-
+注意ld和sd都是表示载入和保存64位的数据(RISCV64)(d是double word的意思?)
 问题1：
 首先寄存器a0-a7一般用于传递函数参数，在printf函数中a2寄存器负责存立即数13
 问题2：
