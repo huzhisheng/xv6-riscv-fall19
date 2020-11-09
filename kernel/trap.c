@@ -71,10 +71,10 @@ usertrap(void)
       //printf("haha");
       if(p->ticks == p->tick_interval){
         //(*(p->handler))();
+        p->old_tf = *(p->tf);
         p->tf->epc = (uint64)(p->handler);
         p->ticks = 0;
       }
-      yield();
     }
     // ok
   } else {

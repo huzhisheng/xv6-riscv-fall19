@@ -107,4 +107,5 @@ struct proc {
   uint ticks;
   uint tick_interval;
   void (*handler)();
+  struct trapframe old_tf;
 };

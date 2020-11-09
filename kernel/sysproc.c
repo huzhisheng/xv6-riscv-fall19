@@ -109,5 +109,6 @@ uint64 sys_sigalarm(void){
 }
 
 uint64 sys_sigreturn(void){
+  *(myproc()->tf) = myproc()->old_tf; //sysproc执行完了会返回到usermode
   return 0;
 }
