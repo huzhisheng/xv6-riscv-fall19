@@ -98,17 +98,21 @@ sys_uptime(void)
 
 uint64 sys_sigalarm(void){
   int n;
+  struct proc *p = myproc();
   uint64 handler = 0;
   if(argint(0, &n) < 0)
+  return -1;
+  if(argaddr(1, &handler) < 0)
     return -1;
-  if(argaddr(0, &handler) < 0)
-    return -1;
-  myproc()->tick_interval = n;
-  myproc()->handler = (void(*)())handler;
+  p->tick_interval = n;
+  p->handler = (void(*)())handler;
   return 0;
 }
 
 uint64 sys_sigreturn(void){
-  *(myproc()->tf) = myproc()->old_tf; //sysproc执行完了会返回到usermode
+  struct proc *p = myproc();
+  *(p->tf) = p->old_tf; //sysproc执行完了会返回到usermode
+  p->inhandler = 0;
+  p->ticks -= p->tick_interval;
   return 0;
 }

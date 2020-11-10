@@ -59,10 +59,9 @@ test0()
 
 void __attribute__ ((noinline)) foo(int i, int *j) {
   if((i % 2500000) == 0) {
-    write(2, "xxx ", 1);
+    write(2, ".", 1);
   }
   *j += 1;
-
 }
 
 //
@@ -82,12 +81,13 @@ test1()
   printf("test1 start\n");
   count = 0;
   j = 0;
+  
   sigalarm(2, periodic);
   for(i = 0; i < 500000000; i++){
     if(count >= 10)
       break;
     foo(i, &j);
-    //printf("%d",j);
+
   }
   if(count < 10){
     printf("\ntest1 failed: too few calls to the handler\n");

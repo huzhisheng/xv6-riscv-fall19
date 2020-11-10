@@ -69,11 +69,11 @@ usertrap(void)
     if(which_dev == 2){
       p->ticks++;
       //printf("haha");
-      if(p->ticks == p->tick_interval){
+      if(p->tick_interval != 0 && p->ticks >= p->tick_interval && p->inhandler == 0){
         //(*(p->handler))();
         p->old_tf = *(p->tf);
+        p->inhandler = 1;
         p->tf->epc = (uint64)(p->handler);
-        p->ticks = 0;
       }
     }
     // ok
@@ -114,7 +114,6 @@ usertrapret(void)
   p->tf->kernel_sp = p->kstack + PGSIZE; // process's kernel stack
   p->tf->kernel_trap = (uint64)usertrap;
   p->tf->kernel_hartid = r_tp();         // hartid for cpuid()
-
   // set up the registers that trampoline.S's sret will use
   // to get to user space.
   

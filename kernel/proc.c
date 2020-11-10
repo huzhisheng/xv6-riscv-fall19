@@ -107,7 +107,7 @@ allocproc(void)
 
 found:
   p->pid = allocpid();
-
+  p->inhandler = 0; //inhandler初始化
   // Allocate a trapframe page.
   if((p->tf = (struct trapframe *)kalloc()) == 0){
     release(&p->lock);
