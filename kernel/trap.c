@@ -69,10 +69,10 @@ usertrap(void)
     if(which_dev == 2){
       p->ticks++;
       //printf("haha");
-      if(p->tick_interval != 0 && p->ticks >= p->tick_interval && p->inhandler == 0){
+      if(p->tick_interval != 0 && p->ticks == p->tick_interval && p->inhandler == 0){
         //(*(p->handler))();
         p->old_tf = *(p->tf);
-        p->inhandler = 1;
+        p->inhandler = 1; //防止重复进入handler
         p->tf->epc = (uint64)(p->handler);
       }
     }

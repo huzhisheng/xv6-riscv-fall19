@@ -113,6 +113,6 @@ uint64 sys_sigreturn(void){
   struct proc *p = myproc();
   *(p->tf) = p->old_tf; //sysproc执行完了会返回到usermode
   p->inhandler = 0;
-  p->ticks -= p->tick_interval;
+  p->ticks = 0;
   return 0;
 }
