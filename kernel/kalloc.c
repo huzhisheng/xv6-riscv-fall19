@@ -92,9 +92,11 @@ kalloc(void)
       r = kmem.freelist[i];
       if(r){
         kmem.freelist[i] = r->next;
+        release(&(kmem.lock[i]));
         break;
+      }else{
+        release(&(kmem.lock[i]));
       }
-      release(&(kmem.lock[i]));
     }
   }
 
