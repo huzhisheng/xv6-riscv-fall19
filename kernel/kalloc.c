@@ -58,7 +58,7 @@ kfree(void *pa)
 
   r = (struct run*)pa;
 
-  push_off();
+  push_off(); //获取cpuid前要push_off禁止中断
   int id = cpuid();
   pop_off();
 
