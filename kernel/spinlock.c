@@ -37,21 +37,21 @@ acquire(struct spinlock *lk)
   if(holding(lk))
     panic("acquire");
 
-  __sync_fetch_and_add(&(lk->n), 1);
+  __sync_fetch_and_add(&(lk->n), 1);    //n是一把锁被需要的个数
     
   // On RISC-V, sync_lock_test_and_set turns into an atomic swap:
   //   a5 = 1
   //   s1 = &lk->locked
   //   amoswap.w.aq a5, a5, (s1)
   while(__sync_lock_test_and_set(&lk->locked, 1) != 0) {
-     __sync_fetch_and_add(&lk->nts, 1);
+     __sync_fetch_and_add(&lk->nts, 1);   //nts貌似只是单独记录下fetch_and_add调用了多少次
   }
   
   // Tell the C compiler and the processor to not move loads or stores
   // past this point, to ensure that the critical section's memory
   // references happen strictly after the lock is acquired.
   // On RISC-V, this emits a fence instruction.
-  __sync_synchronize();
+  __sync_synchronize(); //一个屏障 后面的操作一定是在前面的操作之后的
 
   // Record info about lock acquisition for holding() and debugging.
   lk->cpu = mycpu();
@@ -81,7 +81,7 @@ release(struct spinlock *lk)
   // On RISC-V, sync_lock_release turns into an atomic swap:
   //   s1 = &lk->locked
   //   amoswap.w zero, zero, (s1)
-  __sync_lock_release(&lk->locked);
+  __sync_lock_release(&lk->locked);   //采用sync_lock_release的作用是保证lk->locked = 0这步骤的原子操作性
 
   pop_off();
 }
