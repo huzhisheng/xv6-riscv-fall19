@@ -43,7 +43,7 @@ binit(void)
 {
   struct buf *b;
 
-  //initlock(&bcache.lock, "bcache");
+  initlock(&bcache.lock, "bcache");
 
   // Create linked list of buffers
   for(int i=0;i<NBUCKET;i++){
