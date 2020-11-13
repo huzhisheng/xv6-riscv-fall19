@@ -11,7 +11,7 @@ void panic(char *);
 void run_single_cmd(int argc, char **args);
 int try_to_redir(int argc, char **args);
 
-int getcmd(char *buf, int nbuf)
+int getcmd(char *buf, int nbuf)		//从sh.c中借鉴的函数，用来获取输入
 {
 	fprintf(2, "@ ");
 	memset(buf, 0, nbuf);
@@ -21,7 +21,12 @@ int getcmd(char *buf, int nbuf)
 	return 0;
 }
 
-void run_pipe_cmd(int argc, char **args)
+/*
+* 将输入的一串字符串看作是 "single_cmd | single_cmd | ..." 
+* 即多个single_cmd通过pipe连接起来, 因此把不包含pipe的cmd看作是单个cmd, 把包含pipe的cmd看作是多个 “单个cmd” 的组合体
+* 将pipe_cmd看作是 "single_cmd | pipe_cmd"以此递归下去, 函数每次处理一个single_cmd即可
+*/
+void run_pipe_cmd(int argc, char **args)	
 {
 	int p[2];
 	int i = 0;
@@ -42,7 +47,7 @@ void run_pipe_cmd(int argc, char **args)
 			panic("pipe");
 		}
 		
-		if (fork1() == 0)
+		if (fork1() == 0)	//处理pipe管道, 和之前的pipe实验做法相同, 一定要关闭多余的通道
 		{
 			close(1);
 			dup(p[1]);
@@ -64,7 +69,10 @@ void run_pipe_cmd(int argc, char **args)
 		run_single_cmd(argc, args);
 	}
 }
-
+/*
+* 对于single_cmd, 将其看作一个command与params以及其它重定向语句组合而成, 即single_cmd = command + params + redir
+* 那些重定向语句只对当前进程有效, 并且重定向语句要先处理, 之后再调用exec执行command与params
+*/
 void run_single_cmd(int argc, char **args)
 {
 	while (try_to_redir(argc, args) > 0)
@@ -87,7 +95,10 @@ void run_single_cmd(int argc, char **args)
 	// }
 	exec(args[i], args + i);
 }
-
+/*
+* 找到重定向语句并执行, 先找'>','<','>>'三个标识, 找到后再取得跟在这些符号后面的文件名
+* 需要说明的是, 在本实验中'>>'与'>'效果相同(sh.c中也将'>>'与'>'处理的语句相同)
+*/
 int try_to_redir(int argc, char **args)
 {
 	int i = 0;
@@ -181,6 +192,7 @@ int main(void)
 			char *args[MAXARGS];
 			int arg_num = 0;
 			char *p = buf;
+			// 获取输入, 根据空格将其中的参数字符串切分出来
 			while (*p)
 			{
 				while (*p && *p == ' ')
