@@ -88,47 +88,38 @@ bget(uint dev, uint blockno)
       return b;
     }
   }
-
+  int new_bucketno = (bucketno + 1)%NBUCKET;
+  //借鉴一下网上的写法,不够buf就去别人家借
   // Not cached; recycle an unused buffer.
-  for(b = bcache.head[bucketno].prev; b != &bcache.head[bucketno]; b = b->prev){
-    if(b->refcnt == 0) {
-      b->dev = dev;
-      b->blockno = blockno;
-      b->valid = 0;
-      b->refcnt = 1;
-      //release(&bcache.lock);
-      release(&(bcache.bucketlock[bucketno]));
-      acquiresleep(&b->lock);
-      return b;
+  while(new_bucketno != bucketno){
+    acquire(&(bcache.bucketlock[new_bucketno]));
+    for(b = bcache.head[new_bucketno].prev; b != &bcache.head[new_bucketno]; b = b->prev){
+      if(b->refcnt == 0) {
+        b->next->prev = b->prev;
+        b->prev->next = b->next;
+        release(&(bcache.bucketlock[new_bucketno]));
+        
+        b->dev = dev;
+        b->blockno = blockno;
+        b->valid = 0;
+        b->refcnt = 1;
+
+        b->next = bcache.head[bucketno].next;
+        b->prev = &(bcache.head[bucketno]);
+        bcache.head[bucketno].next->prev = b;
+        bcache.head[bucketno].next = b;
+
+        
+        //release(&bcache.lock);
+        release(&(bcache.bucketlock[bucketno]));
+        acquiresleep(&b->lock);
+        return b;
+      }
     }
+    release(&(bcache.bucketlock[new_bucketno]));
+    new_bucketno = (new_bucketno + 1)%NBUCKET;
   }
-  //这里一定要先release掉bucketlock再获取b->lock,否则会出现sched lock死锁报错
-  //release(&(bcache.bucketlock[bucketno]));
-  //如果没找到空的buf,就取出一个head的尾部buf拿来用了
-  b = bcache.head[bucketno].prev;
-
-  //acquiresleep(&b->lock);
-
-  //bwrite(b);
-
-  //releasesleep(&b->lock);
-
-  //acquire(&(bcache.bucketlock[bucketno]));
-  b->next->prev = b->prev;
-  b->prev->next = b->next;
-  b->next = bcache.head[bucketno].next;
-  b->prev = &(bcache.head[bucketno]);
-  bcache.head[bucketno].next->prev = b;
-  bcache.head[bucketno].next = b;
-  b->dev = dev;
-  b->blockno = blockno;
-  b->valid = 0;
-  b->refcnt = 1;
-  release(&(bcache.bucketlock[bucketno]));
-  acquiresleep(&b->lock);
-
-  return b;
-  //panic("bget: no buffers");
+  panic("bget: no buffers");
 }
 
 // Return a locked buf with the contents of the indicated block.
