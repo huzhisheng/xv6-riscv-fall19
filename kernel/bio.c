@@ -22,7 +22,7 @@
 #include "defs.h"
 #include "fs.h"
 #include "buf.h"
-#define NBUCKET 13
+#define NBUCKET 97
 #define HASHKEY 590127
 struct {
   struct spinlock lock;
@@ -52,16 +52,16 @@ binit(void)
     initlock(&(bcache.bucketlock[i]), "bcache.bucketlock");
   }
   
-  int blockno = 0;
+  //int blockno = 0;
 
   for(b = bcache.buf; b < bcache.buf+NBUF; b++){
-    int bucketno = bhash(blockno);  //将所有buf均匀分给每个bucket
+    int bucketno = 0;//bhash(blockno);  //将所有buf均匀分给每个bucket
     b->next = bcache.head[bucketno].next;
     b->prev = &(bcache.head[bucketno]);
     initsleeplock(&b->lock, "buffer");
     bcache.head[bucketno].next->prev = b;
     bcache.head[bucketno].next = b;
-    blockno++;
+    //blockno++;
   }
   printf("init finished\n");
 }
