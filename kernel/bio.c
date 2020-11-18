@@ -103,17 +103,17 @@ bget(uint dev, uint blockno)
     }
   }
   //这里一定要先release掉bucketlock再获取b->lock,否则会出现sched lock死锁报错
-  release(&(bcache.bucketlock[bucketno]));
+  //release(&(bcache.bucketlock[bucketno]));
   //如果没找到空的buf,就取出一个head的尾部buf拿来用了
   b = bcache.head[bucketno].prev;
-  
-  acquiresleep(&b->lock);
 
-  bwrite(b);
+  //acquiresleep(&b->lock);
 
-  releasesleep(&b->lock);
+  //bwrite(b);
 
-  acquire(&(bcache.bucketlock[bucketno]));
+  //releasesleep(&b->lock);
+
+  //acquire(&(bcache.bucketlock[bucketno]));
   b->next->prev = b->prev;
   b->prev->next = b->next;
   b->next = bcache.head[bucketno].next;
@@ -199,5 +199,3 @@ bunpin(struct buf *b) {
   //release(&bcache.lock);
   release(&(bcache.bucketlock[bucketno]));
 }
-
-
