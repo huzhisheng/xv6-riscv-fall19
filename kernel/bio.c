@@ -63,6 +63,7 @@ binit(void)
     bcache.head[bucketno].next = b;
     blockno++;
   }
+  printf("init finished\n");
 }
 
 // Look through buffer cache for block on device dev.
@@ -101,12 +102,18 @@ bget(uint dev, uint blockno)
       return b;
     }
   }
-  
+  //这里一定要先release掉bucketlock再获取b->lock,否则会出现sched lock死锁报错
+  release(&(bcache.bucketlock[bucketno]));
   //如果没找到空的buf,就取出一个head的尾部buf拿来用了
   b = bcache.head[bucketno].prev;
+  
   acquiresleep(&b->lock);
+
   bwrite(b);
+
   releasesleep(&b->lock);
+
+  acquire(&(bcache.bucketlock[bucketno]));
   b->next->prev = b->prev;
   b->prev->next = b->next;
   b->next = bcache.head[bucketno].next;
@@ -119,8 +126,9 @@ bget(uint dev, uint blockno)
   b->refcnt = 1;
   release(&(bcache.bucketlock[bucketno]));
   acquiresleep(&b->lock);
+
   return b;
-  panic("bget: no buffers");
+  //panic("bget: no buffers");
 }
 
 // Return a locked buf with the contents of the indicated block.
