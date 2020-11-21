@@ -20,7 +20,7 @@ struct superblock {
   uint logstart;     // Block number of first log block
   uint inodestart;   // Block number of first inode block
   uint bmapstart;    // Block number of first free map block
-};
+};                   // logblock, inode, bitmap这些都是按照序号连续分布的
 
 #define FSMAGIC 0x10203040
 
@@ -30,11 +30,11 @@ struct superblock {
 
 // On-disk inode structure
 struct dinode {
-  short type;           // File type
+  short type;           // File type; 0就代表是free的
   short major;          // Major device number (T_DEVICE only)
   short minor;          // Minor device number (T_DEVICE only)
   short nlink;          // Number of links to inode in file system
-  uint size;            // Size of file (bytes)
+  uint size;            // Size of file (bytes); 文件大小的字节数
   uint addrs[NDIRECT+1];   // Data block addresses
 };
 
@@ -52,7 +52,7 @@ struct dinode {
 
 // Directory is a file containing a sequence of dirent structures.
 #define DIRSIZ 14
-
+//ent的意思是entry, 代表一条记录
 struct dirent {
   ushort inum;
   char name[DIRSIZ];

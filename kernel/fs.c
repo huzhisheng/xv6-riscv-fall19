@@ -25,7 +25,7 @@
 static void itrunc(struct inode*);
 // there should be one superblock per disk device, but we run with
 // only one device
-struct superblock sb; 
+struct superblock sb; // 这里没看太懂 log.c中NDISK明明有2个, 实际fs.c中却说只有1个DISK
 
 // Read the super block.
 static void
@@ -61,7 +61,7 @@ bzero(int dev, int bno)
 
 // Blocks.
 
-// Allocate a zeroed disk block.
+// Allocate a zeroed disk block. 返回分配的block的num
 static uint
 balloc(uint dev)
 {
@@ -242,7 +242,7 @@ iupdate(struct inode *ip)
 // the inode and does not read it from disk.
 static struct inode*
 iget(uint dev, uint inum)
-{
+{ //iget不读取内容, 只负责分配空闲的inode
   struct inode *ip, *empty;
 
   acquire(&icache.lock);
@@ -298,7 +298,7 @@ ilock(struct inode *ip)
   acquiresleep(&ip->lock);
 
   if(ip->valid == 0){
-    bp = bread(ip->dev, IBLOCK(ip->inum, sb));
+    bp = bread(ip->dev, IBLOCK(ip->inum, sb));  //通过inum获得该inode在disk中的blocknum
     dip = (struct dinode*)bp->data + ip->inum%IPB;
     ip->type = dip->type;
     ip->major = dip->major;
@@ -334,7 +334,7 @@ void
 iput(struct inode *ip)
 {
   acquire(&icache.lock);
-
+  //ref等于0时就相当于内存里的inode被标记为free了,不必再调用其它函数, 但如果nlink等于0,就必须情空磁盘上的inode
   if(ip->ref == 1 && ip->valid && ip->nlink == 0){
     // inode has no links and no other references: truncate and free.
 
@@ -424,7 +424,7 @@ itrunc(struct inode *ip)
     }
   }
 
-  if(ip->addrs[NDIRECT]){
+  if(ip->addrs[NDIRECT]){ //最后一个内容block貌似是二级内容block的blocknum集合?
     bp = bread(ip->dev, ip->addrs[NDIRECT]);
     a = (uint*)bp->data;
     for(j = 0; j < NINDIRECT; j++){
@@ -526,7 +526,7 @@ namecmp(const char *s, const char *t)
 }
 
 // Look for a directory entry in a directory.
-// If found, set *poff to byte offset of entry.
+// If found, set *poff to byte offset of entry. 返回一个unlocked inode
 struct inode*
 dirlookup(struct inode *dp, char *name, uint *poff)
 {
@@ -632,9 +632,9 @@ namex(char *path, int nameiparent, char *name)
   struct inode *ip, *next;
 
   if(*path == '/')
-    ip = iget(ROOTDEV, ROOTINO);
+    ip = iget(ROOTDEV, ROOTINO);  //绝对路径从根目录开始
   else
-    ip = idup(myproc()->cwd);
+    ip = idup(myproc()->cwd);     //相对路径从cwd开始
 
   while((path = skipelem(path, name)) != 0){
     ilock(ip);

@@ -237,7 +237,7 @@ bad:
   end_op(ROOTDEV);
   return -1;
 }
-
+// The function create creates a new name for a new inode
 static struct inode*
 create(char *path, short type, short major, short minor)
 {
@@ -252,8 +252,8 @@ create(char *path, short type, short major, short minor)
   if((ip = dirlookup(dp, name, 0)) != 0){
     iunlockput(dp);
     ilock(ip);
-    if(type == T_FILE && (ip->type == T_FILE || ip->type == T_DEVICE))
-      return ip;
+    if(type == T_FILE && (ip->type == T_FILE || ip->type == T_DEVICE))  // 没看懂这里为啥允许ip->type == T_DEVICE
+      return ip;               // 这里之所以允许ip->type == T_DEVICE, 是由于type == T_FILE是sys_open的情况, 只需要ip是个ordinary file
     iunlockput(ip);
     return 0;
   }
@@ -287,7 +287,7 @@ uint64
 sys_open(void)
 {
   char path[MAXPATH];
-  int fd, omode;
+  int fd, omode;  //omode是打开文件用的flags
   struct file *f;
   struct inode *ip;
   int n;
@@ -322,8 +322,8 @@ sys_open(void)
     return -1;
   }
 
-  if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){
-    if(f)
+  if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){  // 貌似file.c中的file只是负责管理所有file结构体分配的, 真正地利用起file是fdalloc?
+    if(f)                                               // fdalloc是分配一个fd, 每个进程只有16个可用的fd!
       fileclose(f);
     iunlockput(ip);
     end_op(ROOTDEV);

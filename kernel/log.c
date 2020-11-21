@@ -33,7 +33,7 @@
 // Contents of the header block, used for both the on-disk header block
 // and to keep track in memory of logged block# before commit.
 struct logheader {
-  int n;
+  int n;  // the count of log blocks
   int block[LOGSIZE];
 };
 
@@ -53,7 +53,7 @@ static void commit(int);
 
 void
 initlog(int dev, struct superblock *sb)
-{
+{ // dev表明是哪个磁盘设备
   if (sizeof(struct logheader) >= BSIZE)
     panic("initlog: too big logheader");
 
@@ -75,7 +75,7 @@ install_trans(int dev)
     struct buf *dbuf = bread(dev, log[dev].lh.block[tail]); // read dst
     memmove(dbuf->data, lbuf->data, BSIZE);  // copy block to dst
     bwrite(dbuf);  // write dst to disk
-    bunpin(dbuf);
+    bunpin(dbuf);  // 这里没看懂为啥要bunpin
     brelse(lbuf);
     brelse(dbuf);
   }
@@ -228,7 +228,7 @@ log_write(struct buf *b)
   }
   log[dev].lh.block[i] = b->blockno;
   if (i == log[dev].lh.n) {  // Add new block to log?
-    bpin(b);
+    bpin(b);  //会使buf的ref加1的, 防止buf被当成free buf
     log[dev].lh.n++;
   }
   release(&log[dev].lock);
