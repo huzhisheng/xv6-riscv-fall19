@@ -29,7 +29,7 @@ struct inode {
   short minor;
   short nlink;
   uint size;          // 和dinode中的size相同, 文件的字节大小数目
-  uint addrs[NDIRECT+1];  // addr是内容block的blocknum
+  uint addrs[NDIRECT+2];  // addr是内容block的blocknum
 };
 
 // map major device number to device functions.
