@@ -20,7 +20,6 @@
 #include "fs.h"
 #include "buf.h"
 #include "file.h"
-
 #define min(a, b) ((a) < (b) ? (a) : (b))
 static void itrunc(struct inode*);
 // there should be one superblock per disk device, but we run with
@@ -62,7 +61,7 @@ bzero(int dev, int bno)
 // Blocks.
 
 // Allocate a zeroed disk block. 返回分配的block的num
-static uint
+uint
 balloc(uint dev)
 {
   int b, bi, m;
@@ -376,7 +375,7 @@ iunlockput(struct inode *ip)
 // Return the disk block address of the nth block in inode ip.
 // If there is no such block, bmap allocates one.
 static uint
-bmap(struct inode *ip, uint bn)
+bmap(struct inode *ip, uint bn) // 本文件有修改的只是bmap和itrunc函数
 { // 修改NDIRECT为11
   uint addr, *a;
   struct buf *bp;
@@ -390,7 +389,7 @@ bmap(struct inode *ip, uint bn)
   
   if(bn < NINDIRECT){
     // Load indirect block, allocating if necessary.
-    if((addr = ip->addrs[NDIRECT]) == 0)
+    if((addr = ip->addrs[NDIRECT]) == 0)  //就是这一行,如果将NDIRECT设置为12,再在这里用NDIRECT-1就会报错
       ip->addrs[NDIRECT] = addr = balloc(ip->dev);
     bp = bread(ip->dev, addr);
     a = (uint*)bp->data;

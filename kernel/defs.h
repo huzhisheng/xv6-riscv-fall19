@@ -52,7 +52,7 @@ struct inode*   nameiparent(char*, char*);
 int             readi(struct inode*, int, uint64, uint, uint);
 void            stati(struct inode*, struct stat*);
 int             writei(struct inode*, int, uint64, uint, uint);
-
+uint            balloc(uint dev); // 注册balloc函数, 在symlink中要用到balloc, 这里删除了原来的static关键字
 // ramdisk.c
 void            ramdiskinit(void);
 void            ramdiskintr(void);

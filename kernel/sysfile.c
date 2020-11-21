@@ -15,7 +15,7 @@
 #include "sleeplock.h"
 #include "file.h"
 #include "fcntl.h"
-
+#include "buf.h"
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
 static int
@@ -283,6 +283,44 @@ create(char *path, short type, short major, short minor)
   return ip;
 }
 
+// 接受的ip不是locked的, 返回一个locked的
+static struct inode*
+find_true_inode(struct inode* ip, int depth){
+
+  if(depth >= 10)
+    return 0; // 递归深度超过限制,返回空指针
+
+  ilock(ip);
+  if(ip->type != T_SYMLINK){ 
+    iunlockput(ip);
+    return 0;
+  }
+
+  uint addr;
+  if((addr = ip->addrs[0]) == 0){
+    iunlockput(ip);
+    return 0;
+  }
+
+  struct inode* ip1;
+  struct buf* bp = bread(ip->dev, addr);
+  if((ip1 = namei((char*)bp->data)) == 0){
+    iunlockput(ip);
+    brelse(bp);
+    return 0;
+  }
+  brelse(bp);
+  iunlockput(ip);
+  ilock(ip1);
+  if(ip1->type != T_SYMLINK){
+    iunlock(ip1);
+    return ip1;
+  }else{
+    iunlock(ip1);
+    return find_true_inode(ip1, depth + 1);
+  }
+}
+
 uint64
 sys_open(void)
 {
@@ -315,6 +353,17 @@ sys_open(void)
       return -1;
     }
   }
+  // 处理symlink类型的inode,本函数只修改了此处
+  if(ip->type == T_SYMLINK && !(omode & O_NOFOLLOW)){
+
+    iunlock(ip);
+    ip = find_true_inode(ip,0);
+    if(ip == 0){
+      end_op(ROOTDEV);
+      return -1;
+    }
+    ilock(ip);
+  }
 
   if(ip->type == T_DEVICE && (ip->major < 0 || ip->major >= NDEV)){
     iunlockput(ip);
@@ -322,6 +371,8 @@ sys_open(void)
     return -1;
   }
 
+  
+  
   if((f = filealloc()) == 0 || (fd = fdalloc(f)) < 0){  // 貌似file.c中的file只是负责管理所有file结构体分配的, 真正地利用起file是fdalloc?
     if(f)                                               // fdalloc是分配一个fd, 每个进程只有16个可用的fd!
       fileclose(f);
@@ -483,3 +534,40 @@ sys_pipe(void)
   return 0;
 }
 
+
+uint64
+sys_symlink(void) // 此文件只修改过三个函数 find_true_node, sys_open, sys_symlink
+{
+  char target[MAXPATH], path[MAXPATH];  //想要将path中的文件实际是指向target的快捷方式
+  struct inode *ip;
+  int target_len;
+  if(argstr(0, target, MAXPATH) < 0 || (target_len = argstr(1, path, MAXPATH)) < 0)
+    return -1;
+
+  begin_op(ROOTDEV);
+
+  if((ip = create(path, T_SYMLINK, 0, 0)) == 0){
+    end_op(ROOTDEV);
+    return -1;
+  }
+
+  uint addr;
+  struct buf *bp;
+  char *cp;
+
+  if((addr = ip->addrs[0]) == 0)
+    ip->addrs[0] = addr = balloc(ip->dev);
+
+  bp = bread(ip->dev, addr);
+  cp = (char*)bp->data;
+  memmove(cp,target,target_len);
+  cp[target_len] = '\0';
+  log_write(bp);
+  brelse(bp);
+
+
+  iupdate(ip);
+  iunlockput(ip);
+  end_op(ROOTDEV);
+  return 0;
+}
