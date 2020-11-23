@@ -530,7 +530,7 @@ sys_mmap(void)
   p->vma[i].flags = flags;
   p->vma[i].prot = prot;
   p->vma[i].used = 1;
-  p->vma[i].npages = 0;
+  p->vma[i].npages = ((length + PGSIZE - 1)/PGSIZE);
   filedup(p->vma[i].file);
   printf("mmap完整结束,%d\n",p->vma[i].addr);
   return p->vma[i].addr;

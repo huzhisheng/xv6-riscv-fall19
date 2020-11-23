@@ -130,7 +130,7 @@ mmap_test(void)
     p[i] = 'Z';
   if (munmap(p, PGSIZE*2) == -1)
     err("munmap (2)");
-
+  printf("到达munmap3\n");
   // check that mmap doesn't allow read/write mapping of a
   // file opened read-only.
   if ((fd = open(f, O_RDONLY)) == -1)
@@ -140,7 +140,7 @@ mmap_test(void)
     err("mmap call should have failed");
   if (close(fd) == -1)
     err("close");
-
+  printf("到达munmap4\n");
   // check that mmap does allow read/write mapping of a
   // file opened read/write.
   if ((fd = open(f, O_RDWR)) == -1)
@@ -150,7 +150,7 @@ mmap_test(void)
     err("mmap (3)");
   if (close(fd) == -1)
     err("close");
-
+  printf("到达munmap5\n");
   // check that the mapping still works after close(fd).
   _v1(p);
 
@@ -161,7 +161,7 @@ mmap_test(void)
   // unmap just the first two of three pages of mapped memory.
   if (munmap(p, PGSIZE*2) == -1)
     err("munmap (3)");
-
+  printf("到达munmap6\n");
   // check that the writes to the mapped memory were
   // written to the file.
   if ((fd = open(f, O_RDWR)) == -1)
@@ -175,11 +175,11 @@ mmap_test(void)
   }
   if (close(fd) == -1)
     err("close");
-
+  printf("到达munmap7\n");
   // unmap the rest of the mapped memory.
   if (munmap(p+PGSIZE*2, PGSIZE) == -1)
     err("munmap (4)");
-
+  printf("到达munmap8\n");
   //
   // mmap two files at the same time.
   //
