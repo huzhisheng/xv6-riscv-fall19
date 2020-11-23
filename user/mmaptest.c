@@ -193,7 +193,7 @@ mmap_test(void)
     err("mmap mmap1");
   close(fd1);
   unlink("mmap1");
-
+  printf("到达munmap9\n");
   int fd2;
   if((fd2 = open("mmap2", O_RDWR|O_CREATE)) < 0)
     err("open mmap2");

@@ -329,6 +329,17 @@ exit(int status)
   if(p == initproc)
     panic("init exiting");
 
+  // // 清空vma
+  // for(int i = 0; i < VMANUM; i++){
+  //   if(p->vma[i].used != 0){
+  //     struct VMA* vma = &(p->vma[i]);
+  //     struct file* f = vma->file;
+  //     for(uint64 va = vma->addr; va < vma->addr + vma->length; va += PGSIZE{
+        
+  //     }
+  //     p->vma[i].used = 0;
+  //   }
+  // }
   // Close all open files.
   for(int fd = 0; fd < NOFILE; fd++){
     if(p->ofile[fd]){
@@ -337,6 +348,8 @@ exit(int status)
       p->ofile[fd] = 0;
     }
   }
+  
+
 
   begin_op(ROOTDEV);
   iput(p->cwd);

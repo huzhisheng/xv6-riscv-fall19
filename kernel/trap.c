@@ -89,7 +89,7 @@ usertrap(void)
 
 
     ilock(f->ip);
-    readi(f->ip, 0, (uint64)mem, read_addr, PGSIZE);
+    readi(f->ip, 0, (uint64)mem, read_addr - vma->addr, PGSIZE);
     iunlock(f->ip);
     // if(va > p->sz)
     //   exit(-1);  //测试的第二条要求: Kill a process if it page-faults on a virtual memory address higher than any allocated with sbrk().
@@ -101,7 +101,7 @@ usertrap(void)
       printf("Insert new page PTE into page table failed"); //如果插入页表失败就杀死当前进程
       exit(-1);
     }
-    
+
     printf("缺页错误处理结束\n");
     
   } else {
