@@ -83,7 +83,7 @@ usertrap(void)
     memset(mem, 0, PGSIZE);
     uint64 read_addr = r_stval();
     uint64 va = PGROUNDDOWN(read_addr);
-    int index_in_vma = (read_addr-VMASTART)/VMASIZE;
+    int index_in_vma = (read_addr - VMASTART) / VMASIZE;
     struct VMA* vma = &(p->vma[index_in_vma]);
     struct file* f = vma->file;
 

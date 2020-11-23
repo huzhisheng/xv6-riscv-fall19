@@ -572,6 +572,7 @@ sys_munmap(void)
   }
   if(vma->npages == 0){
     fileclose(f);
+    vma->used = 0;
     printf("文件ref减1\n");
   }
   printf("munmap完成\n");
