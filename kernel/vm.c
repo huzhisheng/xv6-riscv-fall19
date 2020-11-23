@@ -555,11 +555,9 @@ sys_munmap(void)
   uint64 pa;
   for(uint64 va = page_addr; va < addr + length; va += PGSIZE){
     if((pte = walk(p->pagetable,va,0)) && (*pte & PTE_V)){
-      
+      pa = PTE2PA(*pte);
       if(vma->flags & MAP_SHARED){
-        pa = PTE2PA(*pte);
         uint64 file_offset = va - vma->addr;
-
         begin_op(f->ip->dev);
         ilock(f->ip);
         writei(f->ip,0,pa,file_offset,PGSIZE);
@@ -567,6 +565,7 @@ sys_munmap(void)
         end_op(f->ip->dev);
       }
       uvmunmap(p->pagetable,va,PGSIZE,0);
+      kderef((void*)pa);
       vma->npages--;
     }
   }
@@ -578,3 +577,27 @@ sys_munmap(void)
   printf("munmap完成\n");
   return 0;
 }
+
+// 清理pagetable中的va地址上分配的物理内存(如果分配了物理内存的话), va必须已经是页对齐了的
+// 此函数会在process exit的时候调用, 不用回写modified的page(即使MAP_SHARED)
+void
+va_clean(pagetable_t pagetable, uint64 va){
+  pte_t * pte;
+  uint64 pa;
+  if((pte = walk(pagetable,va,0)) && (*pte & PTE_V)){
+      pa = PTE2PA(*pte);
+      uvmunmap(pagetable,va,PGSIZE,0);
+      kderef((void*)pa);
+  }
+}
+
+// void
+// va_clone(pagetable_t npagetable, uint64 va){
+//   pte_t * pte;
+//   uint64 pa;
+//   if((pte = walk(pagetable,va,0)) && (*pte & PTE_V)){
+//       pa = PTE2PA(*pte);
+//       uvmunmap(pagetable,va,PGSIZE,0);
+//       kderef((void*)pa);
+//   }
+// }

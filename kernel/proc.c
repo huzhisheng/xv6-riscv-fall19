@@ -8,6 +8,7 @@
 #include "file.h"
 #include "proc.h"
 #include "defs.h"
+#include "fcntl.h"
 
 struct cpu cpus[NCPU];
 
@@ -279,6 +280,12 @@ fork(void)
   for(i = 0; i < NOFILE; i++)
     if(p->ofile[i])
       np->ofile[i] = filedup(p->ofile[i]);
+  
+  for(i = 0; i < VMANUM; i++){
+    np->vma[i] = p->vma[i];
+    // 这里不需要父子进程的同一个VMA用同一个物理地址也可以通过
+    // va_clone();
+  }
   np->cwd = idup(p->cwd);
 
   safestrcpy(np->name, p->name, sizeof(p->name));
@@ -329,17 +336,16 @@ exit(int status)
   if(p == initproc)
     panic("init exiting");
 
-  // // 清空vma
-  // for(int i = 0; i < VMANUM; i++){
-  //   if(p->vma[i].used != 0){
-  //     struct VMA* vma = &(p->vma[i]);
-  //     struct file* f = vma->file;
-  //     for(uint64 va = vma->addr; va < vma->addr + vma->length; va += PGSIZE{
-        
-  //     }
-  //     p->vma[i].used = 0;
-  //   }
-  // }
+  // 清空vma, 就像munmap中做的一样
+  for(int i = 0; i < VMANUM; i++){
+    if(p->vma[i].used != 0){
+      struct VMA* vma = &(p->vma[i]);
+      for(uint64 va = vma->addr; va < vma->addr + vma->length; va += PGSIZE){
+        va_clean(p->pagetable,va);
+      }
+      p->vma[i].used = 0;
+    }
+  }
   // Close all open files.
   for(int fd = 0; fd < NOFILE; fd++){
     if(p->ofile[fd]){

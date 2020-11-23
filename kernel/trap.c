@@ -101,7 +101,7 @@ usertrap(void)
       printf("Insert new page PTE into page table failed"); //如果插入页表失败就杀死当前进程
       exit(-1);
     }
-
+    kref(mem);
     printf("缺页错误处理结束\n");
     
   } else {

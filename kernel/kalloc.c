@@ -21,13 +21,44 @@ struct run {
 struct {
   struct spinlock lock;
   struct run *freelist;
+  uint* ref_count;  // ref_count代表每个page的ref数, 设置此ref是为了fork时父子进程的vma能同时看见同一物理内存的文件
+                    // ref_count在trap中给mem加1,在fork中加1,在exit中减1, 在munmap的时候减1
 } kmem;
 
 void
 kinit()
 {
   initlock(&kmem.lock, "kmem");
-  freerange(end, (void*)PHYSTOP);
+  uint total_page_numbers =((PHYSTOP - (uint64)end) >> 12) + 1; // 总的页数
+  uint ref_count_offset = ((total_page_numbers * (sizeof(uint)) >> 12) + 1) << 12;  // 这里计算出为每页存一个ref_count需要的页的字节数
+  kmem.ref_count = (uint*)end;
+  freerange(end + ref_count_offset, (void*)PHYSTOP);
+}
+// 使物理地址pa处的page的rec_count加1, pa必须是page的开始地址
+void
+kref(void *pa){
+  uint64 idx = ((uint64)pa - (uint64)end) >> 12;
+
+  acquire(&kmem.lock);
+  kmem.ref_count[idx]++;
+  release(&kmem.lock);
+}
+// 使物理地址pa处的page的rec_count减1, 若减为0则free掉该page
+// pa必须是page的开始地址
+void
+kderef(void *pa){
+  uint64 idx = ((uint64)pa - (uint64)end) >> 12;
+  int should_free = 0;
+  acquire(&kmem.lock);
+  kmem.ref_count[idx]--;
+  if(kmem.ref_count[idx] == 0){
+    should_free = 1;  // 必须要先释放kmem.lock再掉用kfree,否则死锁
+  }
+  release(&kmem.lock);
+
+  if(should_free){
+    kfree(pa);
+  }
 }
 
 void
