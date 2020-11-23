@@ -5,7 +5,10 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
-
+#include "sleeplock.h"
+#include "fs.h"
+#include "file.h"
+#include "fcntl.h"
 struct spinlock tickslock;
 uint ticks;
 
@@ -70,8 +73,7 @@ usertrap(void)
   } else if((which_dev = devintr()) != 0){
     // ok
   } else if(r_scause() == 13 || r_scause() == 15){
-    //printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
-    //printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+    // 复制之前lab lazy的代码,在其基础上进行修改
     printf("缺页错误处理\n");
     char *mem = kalloc();
     if(mem == 0){
@@ -79,16 +81,28 @@ usertrap(void)
       exit(-1);                         //如果申请新的页空间失败了就杀死当前进程
     }
     memset(mem, 0, PGSIZE);
-    uint64 va = PGROUNDDOWN(r_stval());
-    if(va > p->sz)
-      exit(-1);  //测试的第二条要求: Kill a process if it page-faults on a virtual memory address higher than any allocated with sbrk().
-    if(va<p->tf->sp)  //测试的第六条要求: Handle faults on the invalid page below the stack.
-      exit(-1);
-    if(mappages(p->pagetable, va, PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0){
+    uint64 read_addr = r_stval();
+    uint64 va = PGROUNDDOWN(read_addr);
+    int index_in_vma = (read_addr-VMASTART)/VMASIZE;
+    struct VMA* vma = &(p->vma[index_in_vma]);
+    struct file* f = vma->file;
+
+
+    ilock(f->ip);
+    readi(f->ip, 0, (uint64)mem, read_addr, PGSIZE);
+    iunlock(f->ip);
+    // if(va > p->sz)
+    //   exit(-1);  //测试的第二条要求: Kill a process if it page-faults on a virtual memory address higher than any allocated with sbrk().
+    // if(va<p->tf->sp)  //测试的第六条要求: Handle faults on the invalid page below the stack.
+    //   exit(-1);
+    int prot = ((vma->prot & PROT_READ) ? PTE_R : 0) | ((vma->prot & PROT_WRITE) ? PTE_W : 0);
+    if(mappages(p->pagetable, va, PGSIZE, (uint64)mem, prot|PTE_U) != 0){
       kfree(mem);
       printf("Insert new page PTE into page table failed"); //如果插入页表失败就杀死当前进程
       exit(-1);
     }
+    vma->npages++;  //每分配一个物理内存页,npages加1
+    printf("缺页错误处理结束\n");
     
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);

@@ -7,6 +7,10 @@
 #include "fs.h"
 #include "spinlock.h"
 #include "proc.h"
+#include "sleeplock.h"
+#include "file.h"
+#include "fcntl.h"
+
 /*
  * the kernel's page table.
  */
@@ -487,4 +491,89 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
   } else {
     return -1;
   }
+}
+//void *mmap(void *addr, int length, int prot, int flags,int fd, int offset);
+//int munmap(void *addr, int length);
+uint64
+sys_mmap(void)
+{
+  printf("调用一次mmap\n");
+  uint64 addr;
+  int length,prot,flags,fd,offset;
+  if(argaddr(0,&addr) < 0 || argint(1, &length) < 0 || argint(2, &prot) < 0 || argint(3, &flags) < 0 || argint(4, &fd) < 0 || argint(5, &offset) < 0){
+    return -1;
+  }
+  struct proc *p = myproc();
+
+  // assumption: addr and offset shall all be zero
+  if(addr != 0 || offset != 0)
+    return -1;
+
+  if(p->ofile[fd] == 0 || p->ofile[fd]->type != FD_INODE)
+    return -1;
+
+  struct file *f = p->ofile[fd];
+  if((flags & MAP_SHARED) && (prot & PROT_WRITE) && !f->writable)
+    return -1;
+
+  int i;
+  for(i = 0;i < VMANUM;i++){
+    if(p->vma[i].used == 0){
+      break;
+    }
+  }
+  if(i == VMANUM)
+    return -1;
+  p->vma[i].addr = i * VMASIZE + VMASTART; // 暂时给每个VMA分配1M的虚拟空间
+  p->vma[i].file = f;
+  p->vma[i].length = length;
+  p->vma[i].flags = flags;
+  p->vma[i].prot = prot;
+  p->vma[i].used = 1;
+  p->vma[i].npages = 0;
+  filedup(p->vma[i].file);
+  printf("mmap完整结束,%d\n",p->vma[i].addr);
+  return p->vma[i].addr;
+}
+
+uint64
+sys_munmap(void)
+{
+  printf("调用一次munmap\n");
+  uint64 addr;
+  int length;
+  if(argaddr(0,&addr) < 0 || argint(1, &length) < 0){
+    return -1;
+  }
+  struct proc *p = myproc();
+  uint64 page_addr = PGROUNDDOWN(addr);
+  int vma_index = (page_addr-VMASTART)/VMASIZE;
+  struct VMA* vma = &(p->vma[vma_index]);
+  struct file* f = vma->file;
+
+  pte_t * pte;
+  uint64 pa;
+  for(uint64 va = page_addr; va < addr + length; va += PGSIZE){
+    if((pte = walk(p->pagetable,va,0)) && (*pte & PTE_V)){
+      
+      if(vma->flags & MAP_SHARED){
+        pa = PTE2PA(*pte);
+        uint64 file_offset = va - vma->addr;
+
+        begin_op(f->ip->dev);
+        ilock(f->ip);
+        writei(f->ip,0,pa,file_offset,PGSIZE);
+        iunlock(f->ip);
+        end_op(f->ip->dev);
+      }
+      uvmunmap(p->pagetable,va,PGSIZE,0);
+      vma->npages--;
+    }
+  }
+  if(vma->npages == 0){
+    fileclose(f);
+    printf("文件ref减1\n");
+  }
+  printf("munmap完成\n");
+  return 0;
 }

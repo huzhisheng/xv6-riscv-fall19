@@ -87,6 +87,7 @@ struct VMA {
   int length;
   int flags;
   int prot;
+  int npages; // page的数量,当page数量减为0时就需要file->ref减1
   struct file* file;
 };
 #define VMANUM 16

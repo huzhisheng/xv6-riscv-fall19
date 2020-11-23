@@ -482,7 +482,7 @@ readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n)
 // Write data to inode.
 // Caller must hold ip->lock.
 // If user_src==1, then src is a user virtual address;
-// otherwise, src is a kernel address.
+// otherwise, src is a kernel address. 注意这里的off是相对于ip来说的
 int
 writei(struct inode *ip, int user_src, uint64 src, uint off, uint n)
 {
