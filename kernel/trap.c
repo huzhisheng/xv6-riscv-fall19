@@ -52,7 +52,6 @@ usertrap(void)
   
   // save user program counter.
   p->tf->epc = r_sepc();
-  
   if(r_scause() == 8){
     // system call
 
@@ -70,8 +69,29 @@ usertrap(void)
     syscall();
   } else if((which_dev = devintr()) != 0){
     // ok
+  } else if(r_scause() == 13 || r_scause() == 15){
+    //printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
+    //printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
+    printf("缺页错误处理\n");
+    char *mem = kalloc();
+    if(mem == 0){
+      printf("Create new page failed"); //测试的第五条要求: Handle out-of-memory correctly: if kalloc() fails in the page fault handler, kill the current process.
+      exit(-1);                         //如果申请新的页空间失败了就杀死当前进程
+    }
+    memset(mem, 0, PGSIZE);
+    uint64 va = PGROUNDDOWN(r_stval());
+    if(va > p->sz)
+      exit(-1);  //测试的第二条要求: Kill a process if it page-faults on a virtual memory address higher than any allocated with sbrk().
+    if(va<p->tf->sp)  //测试的第六条要求: Handle faults on the invalid page below the stack.
+      exit(-1);
+    if(mappages(p->pagetable, va, PGSIZE, (uint64)mem, PTE_W|PTE_X|PTE_R|PTE_U) != 0){
+      kfree(mem);
+      printf("Insert new page PTE into page table failed"); //如果插入页表失败就杀死当前进程
+      exit(-1);
+    }
+    
   } else {
-    printf("usertrap(): unexpected scause %p (%s) pid=%d\n", r_scause(), scause_desc(r_scause()), p->pid);
+    printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);
     printf("            sepc=%p stval=%p\n", r_sepc(), r_stval());
     p->killed = 1;
   }
@@ -82,7 +102,6 @@ usertrap(void)
   // give up the CPU if this is a timer interrupt.
   if(which_dev == 2)
     yield();
-
   usertrapret();
 }
 
