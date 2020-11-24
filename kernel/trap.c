@@ -74,7 +74,7 @@ usertrap(void)
     // ok
   } else if(r_scause() == 13 || r_scause() == 15){
     // 复制之前lab lazy的代码,在其基础上进行修改
-    printf("缺页错误处理\n");
+    // printf("缺页错误处理\n");
     uint64 read_addr = r_stval();
     if(read_addr < VMASTART || read_addr >= VMASTART + VMASIZE * VMANUM){
       exit(-1);
@@ -106,7 +106,7 @@ usertrap(void)
       exit(-1);
     }
     kref(mem);
-    printf("缺页错误处理结束\n");
+    // printf("缺页错误处理结束\n");
     
   } else {
     printf("usertrap(): unexpected scause %p pid=%d\n", r_scause(), p->pid);

@@ -497,7 +497,7 @@ copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max)
 uint64
 sys_mmap(void)
 {
-  printf("调用一次mmap\n");
+  // printf("调用一次mmap\n");
   uint64 addr;
   int length,prot,flags,fd,offset;
   if(argaddr(0,&addr) < 0 || argint(1, &length) < 0 || argint(2, &prot) < 0 || argint(3, &flags) < 0 || argint(4, &fd) < 0 || argint(5, &offset) < 0){
@@ -532,14 +532,14 @@ sys_mmap(void)
   p->vma[i].used = 1;
   p->vma[i].npages = ((length + PGSIZE - 1)/PGSIZE);
   filedup(p->vma[i].file);
-  printf("mmap完整结束,%d\n",p->vma[i].addr);
+  // printf("mmap完整结束,%d\n",p->vma[i].addr);
   return p->vma[i].addr;
 }
 
 uint64
 sys_munmap(void)
 {
-  printf("调用一次munmap\n");
+  // printf("调用一次munmap\n");
   uint64 addr;
   int length;
   if(argaddr(0,&addr) < 0 || argint(1, &length) < 0){
@@ -572,9 +572,9 @@ sys_munmap(void)
   if(vma->npages == 0){
     fileclose(f);
     vma->used = 0;
-    printf("文件ref减1\n");
+    // printf("文件ref减1\n");
   }
-  printf("munmap完成\n");
+  // printf("munmap完成\n");
   return 0;
 }
 
