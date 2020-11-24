@@ -1691,8 +1691,11 @@ kernmem(char *s)
       printf("%s: fork failed\n", s);
       exit(1);
     }
+    printf("Fork Done\n");
     if(pid == 0){
+      printf("Fork 1\n");
       printf("%s: oops could read %x = %x\n", a, *a);
+      printf("Fork 2\n");
       exit(1);
     }
     int xstatus;

@@ -8,7 +8,7 @@ struct spinlock;
 struct sleeplock;
 struct stat;
 struct superblock;
-
+struct VMA;
 // bio.c
 void            binit(void);
 struct buf*     bread(uint, uint);
@@ -173,6 +173,7 @@ int             copyout(pagetable_t, uint64, char *, uint64);
 int             copyin(pagetable_t, char *, uint64, uint64);
 int             copyinstr(pagetable_t, char *, uint64, uint64);
 void            va_clean(pagetable_t pagetable, uint64 va);
+void            va_clone(pagetable_t npagetable, struct VMA* vma);
 // plic.c
 void            plicinit(void);
 void            plicinithart(void);

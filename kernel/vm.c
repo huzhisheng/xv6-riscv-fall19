@@ -591,13 +591,15 @@ va_clean(pagetable_t pagetable, uint64 va){
   }
 }
 
-// void
-// va_clone(pagetable_t npagetable, uint64 va){
-//   pte_t * pte;
-//   uint64 pa;
-//   if((pte = walk(pagetable,va,0)) && (*pte & PTE_V)){
-//       pa = PTE2PA(*pte);
-//       uvmunmap(pagetable,va,PGSIZE,0);
-//       kderef((void*)pa);
-//   }
-// }
+// 此时子进程的pagetable已经复制, VMA结构体也已复制, 现在需要将vma涉及的物理地址pa的ref_count加1, 以免父进程将一片区域free掉而子进程的pagetable还认为那片区域有效
+void
+va_clone(pagetable_t pagetable, struct VMA* vma){
+  pte_t * pte;
+  uint64 pa;
+  for(uint64 va = vma->addr; va < vma->addr + vma->length; va += PGSIZE){
+    if((pte = walk(pagetable,va,0)) && (*pte & PTE_V)){
+      pa = PTE2PA(*pte);
+      kref((void*)pa);
+    }
+  }
+}

@@ -284,7 +284,7 @@ fork(void)
   for(i = 0; i < VMANUM; i++){
     np->vma[i] = p->vma[i];
     // 这里不需要父子进程的同一个VMA用同一个物理地址也可以通过
-    // va_clone();
+    va_clone(np->pagetable, &(np->vma[i]));
   }
   np->cwd = idup(p->cwd);
 

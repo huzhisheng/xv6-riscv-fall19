@@ -75,13 +75,17 @@ usertrap(void)
   } else if(r_scause() == 13 || r_scause() == 15){
     // 复制之前lab lazy的代码,在其基础上进行修改
     printf("缺页错误处理\n");
+    uint64 read_addr = r_stval();
+    if(read_addr < VMASTART || read_addr >= VMASTART + VMASIZE * VMANUM){
+      exit(-1);
+    }
     char *mem = kalloc();
     if(mem == 0){
       printf("Create new page failed"); //测试的第五条要求: Handle out-of-memory correctly: if kalloc() fails in the page fault handler, kill the current process.
       exit(-1);                         //如果申请新的页空间失败了就杀死当前进程
     }
     memset(mem, 0, PGSIZE);
-    uint64 read_addr = r_stval();
+    
     uint64 va = PGROUNDDOWN(read_addr);
     int index_in_vma = (read_addr - VMASTART) / VMASIZE;
     struct VMA* vma = &(p->vma[index_in_vma]);
