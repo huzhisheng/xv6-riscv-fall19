@@ -87,20 +87,23 @@ kalloc(void)
   release(&(kmem.lock[id]));
 
   if(!r){ //没有空间就去别的freelist找下
-    for(int i = 0; i < NCPU && i != id; i++){
-      acquire(&(kmem.lock[i]));
-      r = kmem.freelist[i];
-      if(r){
-        kmem.freelist[i] = r->next;
-        release(&(kmem.lock[i]));
-        break;
-      }else{
-        release(&(kmem.lock[i]));
+    for(int i = 0; i < NCPU; i++){
+      if(i != id){
+        acquire(&(kmem.lock[i]));
+        r = kmem.freelist[i];
+        if(r){
+          kmem.freelist[i] = r->next;
+          release(&(kmem.lock[i]));
+          break;
+        }else{
+          release(&(kmem.lock[i]));
+        }
       }
     }
   }
 
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
+
   return (void*)r;
 }
