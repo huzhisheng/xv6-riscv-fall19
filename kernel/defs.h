@@ -71,7 +71,9 @@ void            net_tx_udp(struct mbuf*, uint32, uint16, uint16);
 void            sockinit(void);
 int             sockalloc(struct file **, uint32, uint16, uint16);
 void            sockrecvudp(struct mbuf*, uint32, uint16, uint16);
-
+void            sockclose(struct sock*); // 在sysnet中添加为sock类型文件操作函数
+int             sockread(struct sock*, uint64, int);
+int             sockwrite(struct sock*, uint64, int);
 // ramdisk.c
 void            ramdiskinit(void);
 void            ramdiskintr(void);

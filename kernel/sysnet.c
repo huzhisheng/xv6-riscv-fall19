@@ -98,5 +98,83 @@ sockrecvudp(struct mbuf *m, uint32 raddr, uint16 lport, uint16 rport)
   // any sleeping reader. Free the mbuf if there are no sockets
   // registered to handle it.
   //
-  mbuffree(m);
+  struct sock* pos = sockets;
+  acquire(&lock);
+  while(pos){
+    if (pos->raddr == raddr && pos->lport == lport && pos->rport == rport){
+      release(&lock);
+      break;
+    }else{
+      pos = pos->next;
+    }
+  }
+  if(pos){
+    mbufq_pushtail(&pos->rxq, m);
+    wakeup(&pos->rxq);
+  }else{
+    release(&lock);
+  }
+}
+
+void
+sockclose(struct sock* si){
+  struct sock* pos;
+  pos = sockets;
+  acquire(&si->lock);
+
+  if(pos != si){
+    acquire(&lock);
+    while (pos && pos->next != si) {
+      pos = pos->next;
+    }
+    if(!pos || pos->next != si){
+      release(&lock);
+      return;
+    }
+    pos->next = si->next;
+    release(&lock);
+  }
+  while(!mbufq_empty(&si->rxq)){
+    struct mbuf* temp_buf = mbufq_pophead(&si->rxq);
+    mbuffree(temp_buf);
+  }
+  release(&si->lock);
+  kfree((char*)si);
+  return;
+  
+}
+
+int
+sockread(struct sock* si, uint64 addr, int n){
+  struct proc *pr = myproc();
+  acquire(&(si->lock));
+  while(mbufq_empty(&(si->rxq))){
+    if(myproc()->killed){
+      release(&(si->lock));
+      return -1;
+    }
+    sleep(&si->rxq, &(si->lock)); //DOC: piperead-sleep
+  }
+  struct mbuf* buffer = mbufq_pophead(&(si->rxq));
+  if(copyout(pr->pagetable,addr,buffer->head,buffer->len) == -1){
+    release(&si->lock);
+    return 0;
+  }
+  mbuffree(buffer);
+
+  release(&si->lock);
+  return buffer->len;
+}
+
+int
+sockwrite(struct sock* si, uint64 addr, int n){
+  struct proc *pr = myproc();
+  acquire(&si->lock);
+  struct mbuf* buffer = mbufalloc(sizeof(struct udp) + sizeof(struct ip) + sizeof(struct eth));
+  mbufput(buffer, n);
+  copyin(pr->pagetable,buffer->head,addr,n);
+  net_tx_udp(buffer,si->raddr,si->lport,si->rport);
+
+  release(&si->lock);
+  return n;
 }
