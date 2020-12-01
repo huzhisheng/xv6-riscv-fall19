@@ -22,7 +22,7 @@
 #include "defs.h"
 #include "fs.h"
 #include "buf.h"
-#define NBUCKET 97
+#define NBUCKET 17
 #define HASHKEY 590127
 struct {
   struct spinlock lock;
