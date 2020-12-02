@@ -98,7 +98,6 @@ sockrecvudp(struct mbuf *m, uint32 raddr, uint16 lport, uint16 rport)
   // any sleeping reader. Free the mbuf if there are no sockets
   // registered to handle it.
   //
-  printf("sockrecvudp\n");
   struct sock* pos = sockets;
   acquire(&lock);
   while(pos){
@@ -120,7 +119,6 @@ sockrecvudp(struct mbuf *m, uint32 raddr, uint16 lport, uint16 rport)
 
 void
 sockclose(struct sock* si){
-  printf("sockclose\n");
   struct sock* pos;
   pos = sockets;
   acquire(&si->lock);
@@ -152,7 +150,6 @@ sockclose(struct sock* si){
 
 int
 sockread(struct sock* si, uint64 addr, int n){
-  printf("sockread\n");
   struct proc *pr = myproc();
   acquire(&(si->lock));
   while(mbufq_empty(&(si->rxq))){
@@ -177,7 +174,6 @@ sockread(struct sock* si, uint64 addr, int n){
 
 int
 sockwrite(struct sock* si, uint64 addr, int n){
-  printf("sockwrite\n");
   struct proc *pr = myproc();
   //acquire(&si->lock);
   struct mbuf* buffer = mbufalloc(sizeof(struct udp) + sizeof(struct ip) + sizeof(struct eth));

@@ -131,27 +131,24 @@ e1000_recv(void)
   //
   // Check for packets that have arrived from the e1000
   // Create and deliver an mbuf for each packet (using net_rx()).
-  //
-  //acquire(&e1000_lock);
+  // e1000_recv需要扫描整个RX_RING
   uint32 ring_tail = (regs[E1000_RDT] + 1) % RX_RING_SIZE;
   struct rx_desc* tail_desc = &rx_ring[ring_tail];
-  if((tail_desc->status & E1000_RXD_STAT_DD) != 0x1){
-    //release(&e1000_lock);
-    return;
+  while(tail_desc->status & E1000_RXD_STAT_DD){
+    struct mbuf* last_mbuf = rx_mbufs[ring_tail];
+    mbufput(last_mbuf,tail_desc->length - last_mbuf->len);
+    net_rx(last_mbuf);
+    rx_mbufs[ring_tail] = mbufalloc(0);
+    if(!rx_mbufs[ring_tail]){
+      return;
+    }
+    tail_desc->addr = (uint64) rx_mbufs[ring_tail]->head;
+    tail_desc->status = tail_desc->status & ~E1000_RXD_STAT_DD;
+    regs[E1000_RDT] = ring_tail;
+    ring_tail = (regs[E1000_RDT] + 1) % RX_RING_SIZE;
+    tail_desc = &rx_ring[ring_tail];
   }
-  struct mbuf* last_mbuf = rx_mbufs[ring_tail];
-  mbufput(last_mbuf,tail_desc->length - last_mbuf->len);
-  net_rx(last_mbuf);
-  rx_mbufs[ring_tail] = mbufalloc(0);
-  if(!rx_mbufs[ring_tail]){
-    //release(&e1000_lock);
-    return;
-  }
-  tail_desc->addr = (uint64) rx_mbufs[ring_tail]->head;
-  tail_desc->status = tail_desc->status & ~E1000_RXD_STAT_DD;
-  regs[E1000_RDT] = (regs[E1000_RDT] + 1) % RX_RING_SIZE;
-  printf("Received a packet\n");
-  //release(&e1000_lock);
+  
   return;
 }
 
