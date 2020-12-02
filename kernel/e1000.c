@@ -113,7 +113,7 @@ e1000_transmit(struct mbuf *m)
   if(last_mbuf){
     mbuffree(last_mbuf);
   }
-
+  tx_mbufs[ring_tail] = m;
   tail_desc->addr = (uint64) m->head;
   tail_desc->length = m->len;
   tail_desc->cmd = E1000_TXD_CMD_RS | E1000_TXD_CMD_EOP;

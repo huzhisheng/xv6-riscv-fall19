@@ -98,6 +98,7 @@ sockrecvudp(struct mbuf *m, uint32 raddr, uint16 lport, uint16 rport)
   // any sleeping reader. Free the mbuf if there are no sockets
   // registered to handle it.
   //
+  printf("sockrecvudp\n");
   struct sock* pos = sockets;
   acquire(&lock);
   while(pos){
@@ -113,22 +114,27 @@ sockrecvudp(struct mbuf *m, uint32 raddr, uint16 lport, uint16 rport)
     wakeup(&pos->rxq);
   }else{
     release(&lock);
+    mbuffree(m);
   }
 }
 
 void
 sockclose(struct sock* si){
+  printf("sockclose\n");
   struct sock* pos;
   pos = sockets;
   acquire(&si->lock);
 
-  if(pos != si){
+  if(pos == si){
+    sockets = si->next;
+  }else{
     acquire(&lock);
     while (pos && pos->next != si) {
       pos = pos->next;
     }
     if(!pos || pos->next != si){
       release(&lock);
+      release(&si->lock);
       return;
     }
     pos->next = si->next;
@@ -146,6 +152,7 @@ sockclose(struct sock* si){
 
 int
 sockread(struct sock* si, uint64 addr, int n){
+  printf("sockread\n");
   struct proc *pr = myproc();
   acquire(&(si->lock));
   while(mbufq_empty(&(si->rxq))){
@@ -156,25 +163,31 @@ sockread(struct sock* si, uint64 addr, int n){
     sleep(&si->rxq, &(si->lock)); //DOC: piperead-sleep
   }
   struct mbuf* buffer = mbufq_pophead(&(si->rxq));
-  if(copyout(pr->pagetable,addr,buffer->head,buffer->len) == -1){
+  if(n > buffer->len)   // 第一次显示didn't receive correct payload是由于sockread返回的已读取字节数错误，修改后能通过one ping和single_process
+    n = buffer->len;
+  if(copyout(pr->pagetable,addr,buffer->head,n) == -1){
     release(&si->lock);
-    return 0;
+    mbuffree(buffer);
+    return -1;
   }
-  mbuffree(buffer);
-
   release(&si->lock);
-  return buffer->len;
+  mbuffree(buffer);
+  return n;
 }
 
 int
 sockwrite(struct sock* si, uint64 addr, int n){
+  printf("sockwrite\n");
   struct proc *pr = myproc();
-  acquire(&si->lock);
+  //acquire(&si->lock);
   struct mbuf* buffer = mbufalloc(sizeof(struct udp) + sizeof(struct ip) + sizeof(struct eth));
   mbufput(buffer, n);
-  copyin(pr->pagetable,buffer->head,addr,n);
+  if(copyin(pr->pagetable,buffer->head,addr,n)==-1){
+    mbuffree(buffer);
+    return -1;
+  }
   net_tx_udp(buffer,si->raddr,si->lport,si->rport);
 
-  release(&si->lock);
+  //release(&si->lock);
   return n;
 }
