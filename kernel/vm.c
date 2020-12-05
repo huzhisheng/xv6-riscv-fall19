@@ -32,14 +32,14 @@ void vmprint(pagetable_t pagetable){
       // this PTE points to a lower-level page table.
       vmprint_sub((pagetable_t)child, pte, 1, i);
     } else if(pte & PTE_V){
-      printf("%s %d: pte %p pa %p\n","..",i,pte,(pagetable_t)child);
+      printf(" %s%d: pte %p pa %p\n","..",i,pte,(pagetable_t)child);
       //panic("freewalk: leaf");
     }
   }
 }
 void vmprint_sub(pagetable_t pagetable, pte_t pte, int depth, int index){
   for(int i = 0; i < depth; i++){
-    printf(".. ");
+    printf(" ..");
   }
   printf("%d: pte %p pa %p\n",index,pte,pagetable);
 
@@ -52,7 +52,7 @@ void vmprint_sub(pagetable_t pagetable, pte_t pte, int depth, int index){
       vmprint_sub((pagetable_t)child, pte, depth + 1, i);
     } else if(pte & PTE_V){
       for(int i = 0; i < depth + 1; i++){
-        printf(".. ");
+          printf(" ..");
       }
       printf("%d: pte %p pa %p\n",i,pte,(pagetable_t)child);
       //panic("freewalk: leaf");
@@ -136,14 +136,6 @@ walk(pagetable_t pagetable, uint64 va, int alloc)
   }
   return &pagetable[PX(0, va)];
 }
-int uvmcheck_guard(pagetable_t pagetable, uint64 va)
-{
-  pte_t *pte = walk(pagetable, va, 0);
-  if(pte==0){
-    return 0;
-  }
-  return (*pte) & PTE_G;
-}
 // Look up a virtual address, return the physical address,
 // or 0 if not mapped.
 // Can only be used to look up user pages.
@@ -165,8 +157,6 @@ walkaddr(pagetable_t pagetable, uint64 va)
     struct proc *p = myproc();
     if(va >= p->sz)
       return 0;
-    if (uvmcheck_guard(pagetable, va))  //借鉴了下github上判断是否是page_guard地址的函数
-      return 0;
     
     char *mem = kalloc();
     if(mem == 0){
@@ -182,8 +172,6 @@ walkaddr(pagetable_t pagetable, uint64 va)
     }
     pte = walk(pagetable, va, 0);
   }
-  if((*pte & PTE_U) == 0)
-    return 0;
   pa = PTE2PA(*pte);
   return pa;
 }
