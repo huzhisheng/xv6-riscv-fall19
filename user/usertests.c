@@ -1591,7 +1591,6 @@ sbrkbasic(char *s)
 
   // does sbrk() return the expected failure value?
   a = sbrk(TOOMUCH);
-
   if(a != (char*)0xffffffffffffffffL){
     printf("%s: sbrk(<toomuch>) returned %p\n", a);
     exit(1);
@@ -1972,7 +1971,7 @@ pgbug(char *s)
   char *argv[1];
   argv[0] = 0;
   exec((char*)0xeaeb0b5b00002f5e, argv);
-  printf("good\n");
+
   pipe((int*)0xeaeb0b5b00002f5e);
 
   exit(0);

@@ -25,11 +25,9 @@ void print(pagetable_t);
 void
 kvminit()
 {
-  printf("kvminit start");
   kernel_pagetable = (pagetable_t) kalloc();
-  printf("kvminit start");
   memset(kernel_pagetable, 0, PGSIZE);
-  printf("kvminit start");
+
   // uart registers
   kvmmap(UART0, UART0, PGSIZE, PTE_R | PTE_W);
 
@@ -54,7 +52,6 @@ kvminit()
   // map the trampoline for trap entry/exit to
   // the highest virtual address in the kernel.
   kvmmap(TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
-  printf("kvminit start");
 }
 
 // Switch h/w page table register to the kernel's page table,
@@ -253,7 +250,6 @@ uvmalloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz)
 
   oldsz = PGROUNDUP(oldsz);
   a = oldsz;
-
   for(; a < newsz; a += PGSIZE){
     mem = kalloc();
     if(mem == 0){
