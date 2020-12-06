@@ -283,7 +283,7 @@ create(char *path, short type, short major, short minor)
   return ip;
 }
 
-// 接受的ip不是locked的, 返回一个locked的
+// 接受的ip是unlocked的, 返回的ip也是unlocked的
 static struct inode*
 find_true_inode(struct inode* ip, int depth){
 
