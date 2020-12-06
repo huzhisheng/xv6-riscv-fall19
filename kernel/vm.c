@@ -99,15 +99,6 @@ walk(pagetable_t pagetable, uint64 va, int alloc)
   }
   return &pagetable[PX(0, va)];
 }
-
-int uvmcheck_guard(pagetable_t pagetable, uint64 va)
-{
-  pte_t *pte = walk(pagetable, va, 0);
-  if(pte==0){
-    return 0;
-  }
-  return (*pte) & PTE_G;
-}
 // Look up a virtual address, return the physical address,
 // or 0 if not mapped.
 // Can only be used to look up user pages.
@@ -128,8 +119,6 @@ walkaddr(pagetable_t pagetable, uint64 va)
   if((pte == 0) || (*pte & PTE_V) == 0){
     struct proc *p = myproc();
     if(va >= p->sz)
-      return 0;
-    if (uvmcheck_guard(pagetable, va))  //借鉴了下github上判断是否是page_guard地址的函数
       return 0;
     
     char *mem = kalloc();
