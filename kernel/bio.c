@@ -79,7 +79,7 @@ bget(uint dev, uint blockno)
   //acquire(&bcache.lock);
   acquire(&(bcache.bucketlock[bucketno]));
   // Is the block already cached?
-  for(b = bcache.head[bucketno].next; b != &bcache.head[bucketno]; b = b->next){
+  for(b = bcache.head[bucketno].prev; b != &bcache.head[bucketno]; b = b->prev){
     if(b->dev == dev && b->blockno == blockno){
       b->refcnt++;
       //release(&bcache.lock);
@@ -88,12 +88,34 @@ bget(uint dev, uint blockno)
       return b;
     }
   }
+  //在自己桶中查找空闲桶
+  for(b = bcache.head[bucketno].next; b != &bcache.head[bucketno]; b = b->next){
+    if(b->refcnt == 0){
+      b->next->prev = b->prev;  //将该空闲块分离出来再插入到尾部
+      b->prev->next = b->next;
+
+      b->next = bcache.head[bucketno].next;
+      b->prev = &(bcache.head[bucketno]);
+      bcache.head[bucketno].next->prev = b;
+      bcache.head[bucketno].next = b;
+
+      b->dev = dev;
+      b->blockno = blockno;
+      b->valid = 0;
+      b->refcnt = 1;
+
+      release(&(bcache.bucketlock[bucketno]));
+      acquiresleep(&b->lock);
+      return b;
+    }
+  }
+
   int new_bucketno = (bucketno + 1)%NBUCKET;
   //借鉴一下网上的写法,不够buf就去别人家借
   // Not cached; recycle an unused buffer.
   while(new_bucketno != bucketno){
     acquire(&(bcache.bucketlock[new_bucketno]));
-    for(b = bcache.head[new_bucketno].prev; b != &bcache.head[new_bucketno]; b = b->prev){
+    for(b = bcache.head[new_bucketno].next; b != &bcache.head[new_bucketno]; b = b->next){
       if(b->refcnt == 0) {
         b->next->prev = b->prev;
         b->prev->next = b->next;
