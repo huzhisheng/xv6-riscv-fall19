@@ -555,8 +555,8 @@ sys_munmap(void)
       }
       uvmunmap(p->pagetable,va,PGSIZE,0);
       kderef((void*)pa);
-      vma->npages--;
     }
+    vma->npages--;
   }
   if(vma->npages == 0){
     fileclose(f);
