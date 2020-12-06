@@ -68,11 +68,13 @@ usertrap(void)
   } else if(r_scause() == 15){
     uint64 va = PGROUNDDOWN(r_stval());
     pte_t *pte = walk(p->pagetable,va,0);
-    (*pte) &= ~PTE_COW;
-    (*pte) |= PTE_W;
+    
     int flags = PTE_FLAGS(*pte);
     (*pte) &= ~PTE_V; //必须把原来的PTE的V置为0才行, 这样才会为va正确分配新的PTE
-
+    flags &= ~PTE_COW;
+    flags |= PTE_W;
+    flags |= PTE_V;
+    
     char *mem = kalloc();
     if(mem == 0){
       panic("usertrap(): create new page memory failed");
@@ -83,7 +85,6 @@ usertrap(void)
     if(mappages(p->pagetable, va, PGSIZE, (uint64)mem, flags) != 0){
       panic("usertrap(): create new pte failed");
     }
-    (*pte) |= PTE_V;
     kfree((void*)pa);
   } else if((which_dev = devintr()) != 0){
     // ok

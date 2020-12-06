@@ -395,15 +395,16 @@ copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len)
         panic("copyout(): create new page memory failed");
       }
       memmove(mem,(char *)pa0,PGSIZE);
-      (*pte)|=PTE_W;
-      (*pte)&=~PTE_COW;
-      int perm=PTE_FLAGS((*pte));
+      
+      int flags=PTE_FLAGS((*pte));
       (*pte)&=~PTE_V;
-      if(mappages(pagetable, va0, PGSIZE, (uint64)mem, perm) != 0){
+      flags|=PTE_W;
+      flags&=~PTE_COW;
+      flags|=PTE_V;
+      if(mappages(pagetable, va0, PGSIZE, (uint64)mem, flags) != 0){
         kfree(mem);
         return -1;
       }
-      (*pte)|=PTE_V;
       pa0=(uint64)mem; // NOT SURE
       // int flags = PTE_W|PTE_R|PTE_X|PTE_U|PTE_V;
       // uint64 pa = walkaddr(pagetable,va0);
